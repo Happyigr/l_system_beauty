@@ -8,6 +8,8 @@ const START_ANGLE: f32 = 90.0;
 const LINE_LENGTH: f32 = 10.0;
 const GROW_SCALING: f32 = 1.0;
 const START_POINT: Vec2 = Vec2::new(0., 0.);
+const CLOSING_BRACKET: char = ']';
+const OPEN_BRACKET: char = '[';
 
 #[derive(Clone, Debug)]
 struct Vec2Branched {
@@ -87,13 +89,16 @@ impl Lsystem2Points {
     pub fn build_tree(&self, lsystem: String) -> Result<LsystemTree, String> {
         let mut tree = LsystemTree::new();
 
+        Ok(tree)
+    }
+
+    fn build_branch(&self, lsystem: String, branch_id: usize, tree: &mut LsystemTree) {
         let mut current_branch: Vec<Vec2Branched> = vec![];
-        // let mut current_branch_id: usize = 0;
 
         let mut current_angle = self.start_angle;
         let mut current_point = self.start_point.clone();
 
-        for ch in lsystem.chars() {
+        for (i, ch) in lsystem.chars().enumerate() {
             println!("{current_angle}");
             if let Some(action) = self.rules.get(&ch) {
                 match action {
@@ -112,11 +117,64 @@ impl Lsystem2Points {
                     LsystemAction::BranchEnd => todo!(),
                 }
             } else {
-                return Err(format!("Action for {ch} is not found"));
+                panic!("Action for {ch} is not found");
             }
         }
-        tree.add_branch(0, current_branch);
-
-        Ok(tree)
     }
+}
+
+fn find_branch_opening_bracket(lsystem: &String, branch_id: usize) -> usize {
+    let mut last_opened_branch_id: usize = 0;
+    let mut queued_branches: Vec<usize> = vec![];
+    let mut current_branch = 0;
+
+    if branch_id == 0 {
+        return 0;
+    }
+
+    for (i, ch) in lsystem.chars().enumerate() {
+        match ch {
+            OPEN_BRACKET => {
+                queued_branches.push(current_branch);
+                last_opened_branch_id += 1;
+                current_branch = last_opened_branch_id;
+
+                if current_branch == branch_id {
+                    return i;
+                }
+            }
+            CLOSING_BRACKET => {
+                current_branch = queued_branches.pop().unwrap();
+            }
+            _ => {}
+        }
+    }
+
+    panic!("Failed to find branch opening bracket");
+}
+
+fn find_branch_closing_bracket(lsystem: &String, branch_id: usize) -> usize {
+    let mut last_opened_branch_id: usize = 0;
+    let mut queued_branches: Vec<usize> = vec![];
+    let mut current_branch = 0;
+
+    for (i, ch) in lsystem.chars().enumerate() {
+        match ch {
+            OPEN_BRACKET => {
+                queued_branches.push(current_branch);
+                last_opened_branch_id += 1;
+                current_branch = last_opened_branch_id;
+            }
+            CLOSING_BRACKET => {
+                if current_branch == branch_id {
+                    return i;
+                }
+                current_branch = queued_branches.pop().unwrap();
+            }
+            _ => {}
+        }
+    }
+
+    // if it the first branch, then the end will be on the end of the string
+    return lsystem.len() - 1;
 }
