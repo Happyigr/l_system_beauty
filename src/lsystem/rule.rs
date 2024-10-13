@@ -1,4 +1,11 @@
-use super::LsystemAction;
+#[derive(Copy, Clone)]
+pub enum LsystemAction {
+    DrawForward,
+    BranchStart,
+    BranchEnd,
+    TurnLeft,
+    TurnRight,
+}
 
 pub struct Rule {
     pub ch: char,

@@ -11,11 +11,19 @@ fn main() {
     app.run();
 
     let rules = vec![
-        Rule::new('A', "AB".to_string(), LsystemAction::TurnLeft),
-        Rule::new('B', "A".to_string(), LsystemAction::DrawForward),
+        Rule::new(
+            'X',
+            "F+[[X]-X]-F[-FX]+X".to_string(),
+            LsystemAction::DrawForward,
+        ),
+        Rule::new('F', "FF".to_string(), LsystemAction::DrawForward),
+        Rule::new('[', "[".to_string(), LsystemAction::BranchStart),
+        Rule::new(']', "]".to_string(), LsystemAction::BranchEnd),
+        Rule::new('+', "+".to_string(), LsystemAction::TurnLeft),
+        Rule::new('-', "-".to_string(), LsystemAction::TurnRight),
     ];
 
-    let mut axiom2lsystem = Axiom2Lsystem::new("A".to_string());
+    let mut axiom2lsystem = Axiom2Lsystem::new("X".to_string());
     let mut lsystem2points = Lsystem2Points::new();
 
     for rule in rules {

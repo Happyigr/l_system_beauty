@@ -1,6 +1,6 @@
-use bevy::{math::Vec2, utils::HashMap};
+use bevy::{math::Vec2, state::state, utils::HashMap};
 
-use super::rule::Rule;
+use super::rule::{LsystemAction, Rule};
 
 const TURN_LEFT_ANGLE: f32 = 90.0;
 const TURN_RIGHT_ANGLE: f32 = 90.0;
@@ -8,26 +8,6 @@ const START_ANGLE: f32 = 90.0;
 const LINE_LENGTH: f32 = 10.0;
 const GROW_SCALING: f32 = 1.0;
 const START_POINT: Vec2 = Vec2::new(0., 0.);
-const CLOSING_BRACKET: char = ']';
-const OPEN_BRACKET: char = '[';
-
-#[derive(Clone, Debug)]
-struct Vec2Branched {
-    point: Vec2,
-    branches: Option<Vec<usize>>,
-}
-impl Vec2Branched {
-    fn new(x: f32, y: f32) -> Self {
-        Self {
-            branches: None,
-            point: Vec2::new(x, y),
-        }
-    }
-
-    fn add_branch(&mut self, branch_id: usize) {
-        self.branches.get_or_insert_with(Vec::new).push(branch_id);
-    }
-}
 
 #[derive(Debug)]
 pub struct LsystemTree {
@@ -49,13 +29,22 @@ impl LsystemTree {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum LsystemAction {
-    DrawForward,
-    BranchStart,
-    BranchEnd,
-    TurnLeft,
-    TurnRight,
+#[derive(Clone, Debug)]
+struct Vec2Branched {
+    point: Vec2,
+    branches: Option<Vec<usize>>,
+}
+impl Vec2Branched {
+    fn new(x: f32, y: f32) -> Self {
+        Self {
+            branches: None,
+            point: Vec2::new(x, y),
+        }
+    }
+
+    fn add_branch(&mut self, branch_id: usize) {
+        self.branches.get_or_insert_with(Vec::new).push(branch_id);
+    }
 }
 
 // grow scaling will descend the length of the next line
@@ -89,92 +78,81 @@ impl Lsystem2Points {
     pub fn build_tree(&self, lsystem: String) -> Result<LsystemTree, String> {
         let mut tree = LsystemTree::new();
 
-        Ok(tree)
-    }
+        let mut current_state = MyState::new(
+            0,
+            vec![self.start_point.clone()],
+            self.start_point.clone(),
+            self.start_angle,
+        );
 
-    fn build_branch(&self, lsystem: String, branch_id: usize, tree: &mut LsystemTree) {
-        let mut current_branch: Vec<Vec2Branched> = vec![];
+        let mut queued_states: Vec<MyState> = vec![];
+        let mut last_created_branch: usize = 0;
 
-        let mut current_angle = self.start_angle;
-        let mut current_point = self.start_point.clone();
-
-        for (i, ch) in lsystem.chars().enumerate() {
-            println!("{current_angle}");
+        for ch in lsystem.chars() {
+            println!("{}", current_state.id);
             if let Some(action) = self.rules.get(&ch) {
                 match action {
                     LsystemAction::DrawForward => {
+                        // calculate the normilized dir from angle
                         let current_dir = Vec2::new(
-                            current_angle.to_radians().cos(),
-                            current_angle.to_radians().sin(),
+                            current_state.angle.to_radians().cos(),
+                            current_state.angle.to_radians().sin(),
                         );
 
-                        current_branch.push(current_point.clone());
-                        current_point.point += current_dir * self.line_length;
+                        // add it to current points
+                        current_state.points.push(current_state.next_point.clone());
+                        // change next point
+                        current_state.next_point.point += current_dir * self.line_length;
+                        // if there were some branches connected to the point remove them
+                        current_state.next_point.branches = None;
                     }
-                    LsystemAction::TurnLeft => current_angle += self.turn_left_angle,
-                    LsystemAction::TurnRight => current_angle -= self.turn_right_angle,
-                    LsystemAction::BranchStart => todo!(),
-                    LsystemAction::BranchEnd => todo!(),
+                    LsystemAction::TurnLeft => current_state.angle += self.turn_left_angle,
+                    LsystemAction::TurnRight => current_state.angle -= self.turn_right_angle,
+                    LsystemAction::BranchStart => {
+                        if let Some(ref mut branches) = current_state.next_point.branches {
+                            branches.push(last_created_branch + 1);
+                        } else {
+                            current_state.next_point.branches = Some(vec![last_created_branch + 1]);
+                        };
+
+                        queued_states.push(current_state.clone());
+                        current_state.points = vec![];
+                        current_state.id = last_created_branch + 1;
+                        current_state.next_point.branches = None;
+                        last_created_branch += 1;
+                    }
+                    LsystemAction::BranchEnd => {
+                        tree.add_branch(current_state.id, current_state.points);
+                        current_state = queued_states.pop().unwrap();
+                    }
                 }
             } else {
                 panic!("Action for {ch} is not found");
             }
         }
+
+        tree.add_branch(current_state.id, current_state.points);
+
+        Ok(tree)
     }
 }
 
-fn find_branch_opening_bracket(lsystem: &String, branch_id: usize) -> usize {
-    let mut last_opened_branch_id: usize = 0;
-    let mut queued_branches: Vec<usize> = vec![];
-    let mut current_branch = 0;
-
-    if branch_id == 0 {
-        return 0;
-    }
-
-    for (i, ch) in lsystem.chars().enumerate() {
-        match ch {
-            OPEN_BRACKET => {
-                queued_branches.push(current_branch);
-                last_opened_branch_id += 1;
-                current_branch = last_opened_branch_id;
-
-                if current_branch == branch_id {
-                    return i;
-                }
-            }
-            CLOSING_BRACKET => {
-                current_branch = queued_branches.pop().unwrap();
-            }
-            _ => {}
-        }
-    }
-
-    panic!("Failed to find branch opening bracket");
+// help structures
+#[derive(Clone)]
+struct MyState {
+    id: usize,
+    points: Vec<Vec2Branched>,
+    next_point: Vec2Branched,
+    angle: f32,
 }
 
-fn find_branch_closing_bracket(lsystem: &String, branch_id: usize) -> usize {
-    let mut last_opened_branch_id: usize = 0;
-    let mut queued_branches: Vec<usize> = vec![];
-    let mut current_branch = 0;
-
-    for (i, ch) in lsystem.chars().enumerate() {
-        match ch {
-            OPEN_BRACKET => {
-                queued_branches.push(current_branch);
-                last_opened_branch_id += 1;
-                current_branch = last_opened_branch_id;
-            }
-            CLOSING_BRACKET => {
-                if current_branch == branch_id {
-                    return i;
-                }
-                current_branch = queued_branches.pop().unwrap();
-            }
-            _ => {}
+impl MyState {
+    fn new(id: usize, points: Vec<Vec2Branched>, last_point: Vec2Branched, angle: f32) -> Self {
+        Self {
+            id,
+            points,
+            next_point: last_point,
+            angle,
         }
     }
-
-    // if it the first branch, then the end will be on the end of the string
-    return lsystem.len() - 1;
 }
