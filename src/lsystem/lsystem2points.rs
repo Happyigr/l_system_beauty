@@ -1,9 +1,9 @@
-use bevy::{math::Vec2, state::state, utils::HashMap};
+use bevy::{math::Vec2, utils::HashMap};
 
 use super::rule::{LsystemAction, Rule};
 
-const TURN_LEFT_ANGLE: f32 = 90.0;
-const TURN_RIGHT_ANGLE: f32 = 90.0;
+const TURN_LEFT_ANGLE: f32 = 20.0;
+const TURN_RIGHT_ANGLE: f32 = 20.0;
 const START_ANGLE: f32 = 90.0;
 const LINE_LENGTH: f32 = 10.0;
 const GROW_SCALING: f32 = 1.0;
@@ -11,8 +11,8 @@ const START_POINT: Vec2 = Vec2::new(0., 0.);
 
 #[derive(Debug)]
 pub struct LsystemTree {
-    branches: HashMap<usize, Vec<Vec2Branched>>,
-    branches_amount: usize,
+    pub branches: HashMap<usize, Vec<Vec2Branched>>,
+    pub branches_amount: usize,
 }
 
 impl LsystemTree {
@@ -30,9 +30,9 @@ impl LsystemTree {
 }
 
 #[derive(Clone, Debug)]
-struct Vec2Branched {
-    point: Vec2,
-    branches: Option<Vec<usize>>,
+pub struct Vec2Branched {
+    pub point: Vec2,
+    pub branches: Option<Vec<usize>>,
 }
 impl Vec2Branched {
     fn new(x: f32, y: f32) -> Self {
@@ -89,7 +89,6 @@ impl Lsystem2Points {
         let mut last_created_branch: usize = 0;
 
         for ch in lsystem.chars() {
-            println!("{}", current_state.id);
             if let Some(action) = self.rules.get(&ch) {
                 match action {
                     LsystemAction::DrawForward => {
@@ -109,11 +108,7 @@ impl Lsystem2Points {
                     LsystemAction::TurnLeft => current_state.angle += self.turn_left_angle,
                     LsystemAction::TurnRight => current_state.angle -= self.turn_right_angle,
                     LsystemAction::BranchStart => {
-                        if let Some(ref mut branches) = current_state.next_point.branches {
-                            branches.push(last_created_branch + 1);
-                        } else {
-                            current_state.next_point.branches = Some(vec![last_created_branch + 1]);
-                        };
+                        current_state.next_point.add_branch(last_created_branch + 1);
 
                         queued_states.push(current_state.clone());
                         current_state.points = vec![];
