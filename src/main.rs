@@ -29,7 +29,17 @@ fn main() {
     app.run();
 }
 
-fn spawn_tree(mut commands: Commands, mut gizmos: Gizmos) {
+fn spawn_tree(mut gizmos: Gizmos) {
+    // squares
+    // let mut axiom2lsystem = Axiom2Lsystem::new("F".to_string());
+    // let rules = vec![
+    //     Rule::new('F', "F+G".to_string(), LsystemAction::DrawForward),
+    //     Rule::new('G', "F-G".to_string(), LsystemAction::DrawForward),
+    //     Rule::new('+', "+".to_string(), LsystemAction::TurnRight),
+    //     Rule::new('-', "-".to_string(), LsystemAction::TurnLeft),
+    // ];
+    // tree
+    let mut axiom2lsystem = Axiom2Lsystem::new("X".to_string());
     let rules = vec![
         Rule::new(
             'X',
@@ -43,7 +53,6 @@ fn spawn_tree(mut commands: Commands, mut gizmos: Gizmos) {
         Rule::new('-', "-".to_string(), LsystemAction::TurnRight),
     ];
 
-    let mut axiom2lsystem = Axiom2Lsystem::new("X".to_string());
     let mut lsystem2points = Lsystem2Points::new();
 
     for rule in rules {
@@ -59,16 +68,10 @@ fn spawn_tree(mut commands: Commands, mut gizmos: Gizmos) {
 
     let mut queued_branches: VecDeque<(usize, Vec2)> = vec![(0, Vec2::new(0., 0.))].into();
 
-    draw_branch(
-        &mut commands,
-        &lsystem_tree,
-        &mut gizmos,
-        &mut queued_branches,
-    );
+    draw_branch(&lsystem_tree, &mut gizmos, &mut queued_branches);
 }
 
 fn draw_branch(
-    commands: &mut Commands,
     tree: &LsystemTree,
     draw: &mut Gizmos,
     queued_branches: &mut VecDeque<(usize, Vec2)>,
@@ -91,6 +94,7 @@ fn draw_branch(
 
             previous_point = branch_dot.point;
         }
+        draw.circle_2d(previous_point, 10., Color::linear_rgb(0.1, 0.5, 0.0));
     }
 }
 

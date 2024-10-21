@@ -3,7 +3,7 @@ use bevy::{math::Vec2, utils::HashMap};
 use super::rule::{LsystemAction, Rule};
 
 const TURN_LEFT_ANGLE: f32 = 20.0;
-const TURN_RIGHT_ANGLE: f32 = 20.0;
+const TURN_RIGHT_ANGLE: f32 = 80.0;
 const START_ANGLE: f32 = 90.0;
 const LINE_LENGTH: f32 = 10.0;
 const GROW_SCALING: f32 = 1.0;
