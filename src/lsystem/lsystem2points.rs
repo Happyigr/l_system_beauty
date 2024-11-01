@@ -1,17 +1,25 @@
-use bevy::{math::Vec2, utils::HashMap};
+use bevy::{math::Vec2, prelude::Component, utils::HashMap};
 
 use super::rule::{LsystemAction, Rule};
 
 const TURN_LEFT_ANGLE: f32 = 20.0;
-const TURN_RIGHT_ANGLE: f32 = 80.0;
+const TURN_RIGHT_ANGLE: f32 = 20.0;
 const START_ANGLE: f32 = 90.0;
 const LINE_LENGTH: f32 = 10.0;
 const GROW_SCALING: f32 = 1.0;
 const START_POINT: Vec2 = Vec2::new(0., 0.);
+const START_WEIGHT: f32 = 100.0;
+const DELTA_WEIGHT: f32 = 0.4;
 
 #[derive(Debug)]
+pub struct Branch {
+    pub points: Vec<Vec2Branched>,
+    pub weight: f32,
+}
+
+#[derive(Debug, Component)]
 pub struct LsystemTree {
-    pub branches: HashMap<usize, Vec<Vec2Branched>>,
+    pub branches: HashMap<usize, Branch>,
     pub branches_amount: usize,
 }
 
@@ -23,8 +31,8 @@ impl LsystemTree {
         }
     }
 
-    fn add_branch(&mut self, branch_id: usize, points: Vec<Vec2Branched>) {
-        self.branches.insert(branch_id, points);
+    fn add_branch(&mut self, branch_id: usize, points: Vec<Vec2Branched>, weight: f32) {
+        self.branches.insert(branch_id, Branch { points, weight });
         self.branches_amount += 1;
     }
 }
@@ -83,6 +91,7 @@ impl Lsystem2Points {
             vec![self.start_point.clone()],
             self.start_point.clone(),
             self.start_angle,
+            START_WEIGHT,
         );
 
         let mut queued_states: Vec<MyState> = vec![];
@@ -111,13 +120,19 @@ impl Lsystem2Points {
                         current_state.next_point.add_branch(last_created_branch + 1);
 
                         queued_states.push(current_state.clone());
+
+                        current_state.weight *= DELTA_WEIGHT;
                         current_state.points = vec![];
                         current_state.id = last_created_branch + 1;
                         current_state.next_point.branches = None;
                         last_created_branch += 1;
                     }
                     LsystemAction::BranchEnd => {
-                        tree.add_branch(current_state.id, current_state.points);
+                        tree.add_branch(
+                            current_state.id,
+                            current_state.points,
+                            current_state.weight,
+                        );
                         current_state = queued_states.pop().unwrap();
                     }
                 }
@@ -126,7 +141,7 @@ impl Lsystem2Points {
             }
         }
 
-        tree.add_branch(current_state.id, current_state.points);
+        tree.add_branch(current_state.id, current_state.points, current_state.weight);
 
         Ok(tree)
     }
@@ -139,15 +154,23 @@ struct MyState {
     points: Vec<Vec2Branched>,
     next_point: Vec2Branched,
     angle: f32,
+    weight: f32,
 }
 
 impl MyState {
-    fn new(id: usize, points: Vec<Vec2Branched>, last_point: Vec2Branched, angle: f32) -> Self {
+    fn new(
+        id: usize,
+        points: Vec<Vec2Branched>,
+        last_point: Vec2Branched,
+        angle: f32,
+        weight: f32,
+    ) -> Self {
         Self {
             id,
             points,
             next_point: last_point,
             angle,
+            weight,
         }
     }
 }
